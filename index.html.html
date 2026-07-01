@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
+<title>Habits</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',Helvetica,sans-serif;min-height:100vh;overscroll-behavior:none}
+#root{max-width:430px;margin:0 auto;min-height:100vh;position:relative}
+.section-lbl{font-size:13px;font-weight:600;color:rgba(235,235,245,.4);letter-spacing:.5px;text-transform:uppercase;padding:0 20px;margin-bottom:8px}
+.habit-list,.task-list{padding:0 16px;margin-bottom:20px}
+.card{background:#1c1c1e;border-radius:12px;padding:13px 14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;transition:opacity .15s}
+.card.done{opacity:.75}
+.check-ring{width:28px;height:28px;border-radius:50%;border:2px solid #3a3a3c;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all .25s ease}
+.check-ring.done{background:#30d158;border-color:#30d158}
+.check-ring.task{border-radius:4px}
+.check-icon{opacity:0;font-size:15px;font-weight:700;color:#fff;transition:opacity .2s}
+.check-ring.done .check-icon{opacity:1}
+.info{flex:1;min-width:0;cursor:pointer}
+.h-name{font-size:17px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-name.done{color:rgba(235,235,245,.5)}
+.h-note{font-size:13px;color:rgba(235,235,245,.4);margin-top:2px}
+.streak{font-size:13px;color:rgba(235,235,245,.5);display:flex;align-items:center;gap:3px;flex-shrink:0}
+.edit-btn{background:none;border:none;color:rgba(235,235,245,.3);font-size:16px;cursor:pointer;padding:5px 7px;border-radius:8px}
+.del-btn{background:none;border:none;color:rgba(255,69,58,.5);font-size:16px;cursor:pointer;padding:5px 7px;border-radius:8px}
+.empty{text-align:center;padding:40px 20px}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty-title{font-size:18px;font-weight:600;color:rgba(235,235,245,.6);margin-bottom:6px}
+.empty-sub{font-size:14px;color:rgba(235,235,245,.4)}
+.prog-wrap{margin:0 16px 14px;background:#1c1c1e;border-radius:12px;padding:14px 16px}
+.prog-header{display:flex;justify-content:space-between;margin-bottom:10px}
+.prog-label{font-size:14px;color:rgba(235,235,245,.6)}
+.prog-count{font-size:14px;font-weight:600;color:#0a84ff}
+.prog-bg{height:6px;background:#3a3a3c;border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;background:#0a84ff;transition:width .4s ease}
+.prog-fill.full{background:#30d158}
+.date-nav{display:flex;align-items:center;justify-content:space-between;margin:0 16px 16px;background:#1c1c1e;border-radius:12px;padding:10px 14px}
+.date-nav button{background:none;border:none;color:#0a84ff;font-size:22px;cursor:pointer;padding:0 8px;line-height:1}
+.date-nav button:disabled{opacity:.3;cursor:default}
+.date-title{font-size:15px;font-weight:600}
+.date-sub{font-size:12px;color:#ff9f0a;margin-top:2px}
+.nav-bar{padding:20px 20px 16px;display:flex;align-items:flex-end;justify-content:space-between}
+.nav-title{font-size:34px;font-weight:700;letter-spacing:-.5px}
+.nav-sub{font-size:15px;color:rgba(235,235,245,.6);margin-top:2px}
+.add-btn{width:34px;height:34px;border-radius:50%;background:#0a84ff;border:none;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.bottom-tab{position:fixed;bottom:0;left:0;right:0;height:83px;background:rgba(28,28,30,.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:.5px solid #38383a;display:flex;justify-content:space-around;align-items:flex-start;padding-top:10px;z-index:50;max-width:430px;margin:0 auto}
+.tab-item{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-width:60px}
+.tab-icon{font-size:22px;filter:grayscale(1) opacity(.4)}
+.tab-icon.active{filter:none}
+.tab-label{font-size:10px;color:rgba(235,235,245,.4)}
+.tab-label.active{color:#0a84ff;font-weight:600}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.overlay.open{opacity:1;pointer-events:all}
+.sheet{background:#1c1c1e;border-radius:20px 20px 0 0;padding:20px 20px 48px;width:100%;max-width:430px;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1)}
+.overlay.open .sheet{transform:translateY(0)}
+.handle{width:36px;height:4px;background:#3a3a3c;border-radius:2px;margin:0 auto 20px}
+.sheet-title{font-size:20px;font-weight:700;margin-bottom:16px}
+.emoji-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+.emoji-btn{width:100%;aspect-ratio:1;border-radius:10px;background:#2c2c2e;border:2px solid transparent;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.emoji-btn.sel{border-color:#0a84ff;background:rgba(10,132,255,.2)}
+.m-input{width:100%;background:#2c2c2e;border:none;border-radius:10px;padding:14px;color:#fff;font-size:17px;font-family:inherit;outline:none;margin-bottom:10px;-webkit-appearance:none}
+.m-input::placeholder{color:rgba(235,235,245,.3)}
+.day-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.day-btn{padding:6px 10px;border-radius:8px;background:#2c2c2e;color:rgba(235,235,245,.6);border:none;font-size:14px;cursor:pointer;font-family:inherit}
+.day-btn.sel{background:#0a84ff;color:#fff;font-weight:600}
+.btn-row{display:flex;gap:10px;margin-top:6px}
+.btn-primary{flex:1;background:#0a84ff;color:#fff;border:none;border-radius:12px;padding:15px;font-size:17px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-secondary{flex:1;background:#2c2c2e;color:#fff;border:none;border-radius:12px;padding:15px;font-size:17px;font-weight:500;cursor:pointer;font-family:inherit}
+.btn-danger{flex:1;background:rgba(255,69,58,.15);color:#ff453a;border:none;border-radius:12px;padding:15px;font-size:17px;font-weight:500;cursor:pointer;font-family:inherit}
+.stat-card{background:#1c1c1e;border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.stat-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.stat-name{font-size:17px;font-weight:600}
+.stat-streak{font-size:14px;color:#ff9f0a}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.stat-mini{background:#2c2c2e;border-radius:10px;padding:10px 8px;text-align:center}
+.stat-num{font-size:20px;font-weight:700}
+.stat-sub{font-size:11px;color:rgba(235,235,245,.4);margin-top:2px}
+.dots{display:flex;gap:5px;justify-content:center;margin-bottom:4px}
+.dot{width:28px;height:28px;border-radius:50%;background:#2c2c2e;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.dot.done{background:#30d158}
+.dot.today{outline:2px solid #0a84ff;outline-offset:1px}
+.dot.empty{background:transparent}
+.day-labels{display:flex;gap:5px;justify-content:center}
+.day-lbl{width:28px;text-align:center;font-size:10px;color:rgba(235,235,245,.3)}
+.settings-card{background:#1c1c1e;border-radius:12px;overflow:hidden;margin-bottom:16px}
+.settings-row{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:.5px solid #38383a;font-size:17px}
+.settings-row:last-child{border-bottom:none}
+.settings-val{font-weight:600;color:#0a84ff}
+.settings-danger{color:#ff453a;cursor:pointer}
+.tab-content{padding:0 16px}
+.footer{text-align:center;color:rgba(235,235,245,.2);font-size:13px;padding-bottom:20px}
+/* Login */
+.login-wrap{background:#000;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.login-icon{font-size:56px;margin-bottom:16px}
+.login-title{font-size:28px;font-weight:700;margin-bottom:4px}
+.login-sub{font-size:15px;color:rgba(235,235,245,.6);margin-bottom:40px}
+.login-form{width:100%;max-width:340px}
+.login-err{color:#ff453a;font-size:14px;margin-bottom:12px;text-align:center}
+/* Admin */
+.admin-summary{padding:0 16px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.admin-stat{background:#1c1c1e;border-radius:12px;padding:14px 16px;text-align:center}
+.admin-stat-num{font-size:28px;font-weight:700}
+.admin-stat-lbl{font-size:13px;color:rgba(235,235,245,.4);margin-top:4px}
+.user-card{background:#1c1c1e;border-radius:12px;margin-bottom:10px;overflow:hidden}
+.user-row{padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer}
+.user-avatar{width:40px;height:40px;border-radius:50%;background:#2c2c2e;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#0a84ff;flex-shrink:0}
+.user-meta{font-size:13px;color:rgba(235,235,245,.4);margin-top:2px}
+.user-detail{border-top:.5px solid #38383a;padding:14px 16px}
+.pw-row{background:#2c2c2e;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between}
+.mini-card{background:#2c2c2e;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.tag{font-size:12px;padding:2px 8px;border-radius:6px;font-weight:600}
+.tag.done{background:rgba(48,209,88,.2);color:#30d158}
+.tag.pending{background:rgba(255,69,58,.2);color:#ff453a}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+const ADMIN = { username: "Nodir", password: "2002Nodir" };
+const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const EMOJIS = ['💧','🏃','📚','😴','🧘','🥗','💊','🎯','✏️','🎵','🏋️','🧹','🌅','💻','🚴','🍎','🫀','🧠','🎨','🛌'];
+
+function getKey(d){return d.toISOString().slice(0,10)}
+function getDayName(d){return DAY_NAMES[d.getDay()]}
+function getDateStr(date){
+  const today=new Date();today.setHours(0,0,0,0);
+  const d=new Date(date);d.setHours(0,0,0,0);
+  const diff=Math.round((d-today)/86400000);
+  if(diff===0)return `Today · ${MONTHS[date.getMonth()]} ${date.getDate()}`;
+  if(diff===-1)return `Yesterday · ${MONTHS[date.getMonth()]} ${date.getDate()}`;
+  const days=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  return `${days[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`;
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// ── Storage (localStorage-backed, works standalone) ──
+function lget(key,def){try{const v=localStorage.getItem(key);return v?JSON.parse(v):def}catch{return def}}
+function lset(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch{}}
+
+// ── Global state ──
+let state = {
+  screen: 'login', // login | app | admin
+  loginMode: 'login',
+  loginErr: '',
+  currentUser: null,
+  tab: 'today',
+  viewDate: (()=>{const d=new Date();d.setHours(0,0,0,0);return d})(),
+  modal: null,
+  editTarget: null,
+  form: {},
+  adminSelected: null,
+};
+
+function render(){
+  const root=document.getElementById('root');
+  if(state.screen==='login') root.innerHTML=renderLogin();
+  else if(state.screen==='admin') root.innerHTML=renderAdmin();
+  else root.innerHTML=renderApp();
+  attachHandlers();
+}
+
+// ═══════════ LOGIN ═══════════
+function renderLogin(){
+  return `
+  <div class="login-wrap">
+    <div class="login-icon">🎯</div>
+    <div class="login-title">Habit Tracker</div>
+    <div class="login-sub">${state.loginMode==='login'?'Welcome back':'Create your account'}</div>
+    <div class="login-form">
+      <input class="m-input" id="li-user" placeholder="Username" autocapitalize="none" value="${esc(state._u||'')}">
+      <input class="m-input" id="li-pass" placeholder="Password" type="password" style="margin-bottom:16px" value="${esc(state._p||'')}">
+      ${state.loginErr?`<div class="login-err">${esc(state.loginErr)}</div>`:''}
+      <button class="btn-primary" style="width:100%;margin-bottom:12px" id="li-submit">${state.loginMode==='login'?'Sign In':'Create Account'}</button>
+      <button class="btn-secondary" style="width:100%" id="li-switch">${state.loginMode==='login'?'New here? Sign Up':'Already have account? Sign In'}</button>
+    </div>
+  </div>`;
+}
+
+function doLogin(){
+  const uEl=document.getElementById('li-user'), pEl=document.getElementById('li-pass');
+  const uname=(uEl.value||'').trim(), pass=pEl.value||'';
+  state._u=uname; state._p=pass;
+  if(!uname||!pass){state.loginErr='Fill in all fields';render();return}
+  if(uname===ADMIN.username && pass===ADMIN.password){
+    state.currentUser={username:ADMIN.username,isAdmin:true};
+    state.screen='admin'; state.loginErr=''; render(); return;
+  }
+  const users=lget('users',{});
+  const existingKey=Object.keys(users).find(u=>u.toLowerCase()===uname.toLowerCase());
+  if(state.loginMode==='login'){
+    if(!existingKey){state.loginErr='User not found';render();return}
+    if(users[existingKey].password!==pass){state.loginErr='Wrong password';render();return}
+    state.currentUser={username:existingKey,isAdmin:false};
+  }else{
+    if(existingKey||uname.toLowerCase()===ADMIN.username.toLowerCase()){state.loginErr='Username already taken — try another';render();return}
+    if(uname.length<3){state.loginErr='Username must be at least 3 characters';render();return}
+    users[uname]={password:pass,createdAt:getKey(new Date())};
+    lset('users',users);
+    state.currentUser={username:uname,isAdmin:false};
+  }
+  state.loginErr=''; state._u=''; state._p='';
+  state.screen='app'; state.tab='today';
+  render();
+}
+
+// ═══════════ APP DATA HELPERS ═══════════
+function loadUserData(uname){ return lget(`user_${uname}`,{habits:[],tasks:[],completions:{}}); }
+function saveUserData(uname,data){ lset(`user_${uname}`,data); }
+
+function getHabitStreak(data,id){
+  let s=0;const now=new Date();
+  for(let i=0;i<365;i++){
+    const date=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i);
+    const k=getKey(date),dn=getDayName(date);
+    const h=data.habits.find(x=>x.id===id);
+    if(!h||!h.days.includes(dn))continue;
+    if(!(data.completions[k]&&data.completions[k][`h_${id}`]))break;
+    s++;
+  }
+  return s;
+}
+function getMonthPct(data,id){
+  const h=data.habits.find(x=>x.id===id);if(!h)return 0;
+  const d=new Date();let scheduled=0,done=0;
+  for(let day=1;day<=d.getDate();day++){
+    const date=new Date(d.getFullYear(),d.getMonth(),day);
+    const dn=getDayName(date);
+    if(h.days.includes(dn)){scheduled++;const k=getKey(date);if(data.completions[k]&&data.completions[k][`h_${id}`])done++;}
+  }
+  return scheduled?Math.round(done/scheduled*100):0;
+}
+
+// ═══════════ USER APP ═══════════
+function renderApp(){
+  const uname=state.currentUser.username;
+  const data=loadUserData(uname);
+  const vKey=getKey(state.viewDate), vDay=getDayName(state.viewDate);
+  const vComp=data.completions[vKey]||{};
+  const isToday=getKey(state.viewDate)===getKey(new Date());
+
+  const viewHabits=data.habits.filter(h=>h.days.includes(vDay));
+  const doneHabits=viewHabits.filter(h=>vComp[`h_${h.id}`]);
+  const pendingHabits=viewHabits.filter(h=>!vComp[`h_${h.id}`]);
+  const habitPct=viewHabits.length?Math.round(doneHabits.length/viewHabits.length*100):0;
+  const doneTasks=data.tasks.filter(t=>t.done);
+  const pendingTasks=data.tasks.filter(t=>!t.done);
+  const taskPct=data.tasks.length?Math.round(doneTasks.length/data.tasks.length*100):0;
+
+  let body='';
+  if(state.tab==='today'){
+    body=`
+      <div class="date-nav">
+        <button id="date-prev">‹</button>
+        <div style="text-align:center">
+          <div class="date-title">${getDateStr(state.viewDate)}</div>
+          ${!isToday?'<div class="date-sub">Editing past day</div>':''}
+        </div>
+        <button id="date-next" ${isToday?'disabled':''}>›</button>
+      </div>
+      <div class="prog-wrap">
+        <div class="prog-header"><span class="prog-label">Habits</span><span class="prog-count">${doneHabits.length} / ${viewHabits.length}</span></div>
+        <div class="prog-bg"><div class="prog-fill ${habitPct===100?'full':''}" style="width:${habitPct}%"></div></div>
+      </div>
+      <div class="prog-wrap">
+        <div class="prog-header"><span class="prog-label">Tasks</span><span class="prog-count">${doneTasks.length} / ${data.tasks.length}</span></div>
+        <div class="prog-bg"><div class="prog-fill ${taskPct===100?'full':''}" style="width:${taskPct}%"></div></div>
+      </div>
+      ${viewHabits.length===0?`<div class="empty"><div class="empty-icon">✨</div><div class="empty-title">No habits today</div><div class="empty-sub">Go to Habits tab to add some</div></div>`:''}
+      ${pendingHabits.length>0?`<div class="section-lbl">Habits to do</div><div class="habit-list">${pendingHabits.map(h=>habitCard(h,false,getHabitStreak(data,h.id))).join('')}</div>`:''}
+      ${pendingTasks.length>0?`<div class="section-lbl">Tasks</div><div class="task-list">${pendingTasks.map(t=>taskCard(t,false)).join('')}</div>`:''}
+      ${(doneHabits.length>0||doneTasks.length>0)?`<div class="section-lbl">Completed</div><div class="habit-list">${doneHabits.map(h=>habitCard(h,true,getHabitStreak(data,h.id))).join('')}${doneTasks.map(t=>taskCard(t,true)).join('')}</div>`:''}
+    `;
+  } else if(state.tab==='habits'){
+    body=`
+      ${data.habits.length===0?`<div class="empty"><div class="empty-icon">🔥</div><div class="empty-title">No habits yet</div><div class="empty-sub">Tap + to add your first habit</div></div>`:''}
+      <div class="habit-list">
+        ${data.habits.map(h=>`
+          <div class="card" style="flex-direction:column;align-items:flex-start;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px;width:100%">
+              <span style="font-size:22px">${h.emoji}</span>
+              <div style="flex:1">
+                <div style="font-size:17px;font-weight:500">${esc(h.name)}</div>
+                ${h.note?`<div class="h-note">${esc(h.note)}</div>`:''}
+              </div>
+              <button class="edit-btn" data-edit-habit="${h.id}">✎</button>
+              <button class="del-btn" data-del-habit="${h.id}">✕</button>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${DAYS.map(d=>`<span style="font-size:12px;padding:3px 8px;border-radius:6px;background:${h.days.includes(d)?'rgba(10,132,255,.2)':'#2c2c2e'};color:${h.days.includes(d)?'#0a84ff':'rgba(235,235,245,.3)'};font-weight:${h.days.includes(d)?600:400}">${d}</span>`).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } else if(state.tab==='tasks'){
+    body=`
+      ${data.tasks.length===0?`<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No tasks yet</div><div class="empty-sub">Tap + to add a task</div></div>`:''}
+      ${pendingTasks.length>0?`<div class="section-lbl">To do</div><div class="task-list">${pendingTasks.map(t=>taskCard(t,false)).join('')}</div>`:''}
+      ${doneTasks.length>0?`<div class="section-lbl">Completed</div><div class="task-list">${doneTasks.map(t=>taskCard(t,true)).join('')}</div>`:''}
+    `;
+  } else if(state.tab==='stats'){
+    body=`
+      <div class="tab-content">
+        <div class="section-lbl" style="padding:0;margin-bottom:12px">This Month</div>
+        ${data.habits.length===0?`<div class="empty"><div class="empty-icon">📊</div><div class="empty-sub">Add habits to track stats</div></div>`:''}
+        ${data.habits.map(h=>{
+          const streak=getHabitStreak(data,h.id);
+          const mp=getMonthPct(data,h.id);
+          const mpColor=mp>=70?'#30d158':mp>=40?'#ff9f0a':'#ff453a';
+          const dots=Array.from({length:7}).map((_,i)=>{
+            const now=new Date();
+            const date=new Date(now.getFullYear(),now.getMonth(),now.getDate()-(6-i));
+            const k=getKey(date),dn=getDayName(date);
+            const scheduled=h.days.includes(dn);
+            const did=data.completions[k]&&data.completions[k][`h_${h.id}`];
+            const isTod=i===6;
+            return `<div class="dot ${did?'done':scheduled?'':'empty'} ${isTod?'today':''}">${did?'✓':''}</div>`;
+          }).join('');
+          const labels=Array.from({length:7}).map((_,i)=>{
+            const now=new Date();const date=new Date(now.getFullYear(),now.getMonth(),now.getDate()-(6-i));
+            return `<div class="day-lbl">${['Su','Mo','Tu','We','Th','Fr','Sa'][date.getDay()]}</div>`;
+          }).join('');
+          return `<div class="stat-card">
+            <div class="stat-top"><div class="stat-name">${h.emoji} ${esc(h.name)}</div>${streak>0?`<div class="stat-streak">🔥 ${streak}</div>`:''}</div>
+            <div class="stat-grid">
+              <div class="stat-mini"><div class="stat-num" style="color:#0a84ff">${streak}</div><div class="stat-sub">Streak</div></div>
+              <div class="stat-mini"><div class="stat-num" style="color:${mpColor}">${mp}%</div><div class="stat-sub">This month</div></div>
+              <div class="stat-mini"><div class="stat-num">${h.days.length}d</div><div class="stat-sub">Per week</div></div>
+            </div>
+            <div class="dots">${dots}</div>
+            <div class="day-labels">${labels}</div>
+          </div>`;
+        }).join('')}
+        <div style="margin-top:24px;margin-bottom:8px">
+          <div class="section-lbl" style="padding:0;margin-bottom:12px">Account</div>
+          <div class="settings-card">
+            <div class="settings-row"><span>Username</span><span class="settings-val">${esc(uname)}</span></div>
+            <div class="settings-row settings-danger" id="signout-btn" style="border-bottom:none">Sign Out</div>
+          </div>
+        </div>
+        <div class="footer">Habit Tracker · Built with Claude</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div id="root">
+      <div class="nav-bar">
+        <div>
+          <div class="nav-title">${state.tab==='today'?'Today':state.tab==='habits'?'Habits':state.tab==='tasks'?'Tasks':'Stats'}</div>
+          ${state.tab==='today'?`<div class="nav-sub">${esc(uname)}</div>`:''}
+        </div>
+        ${(state.tab==='habits'||state.tab==='tasks')?`<button class="add-btn" id="open-add">+</button>`:''}
+      </div>
+      <div style="padding-bottom:90px">${body}</div>
+      <div class="bottom-tab">
+        ${[['today','📋','Today'],['habits','🔥','Habits'],['tasks','✅','Tasks'],['stats','📊','Stats']].map(([id,icon,label])=>`
+          <div class="tab-item" data-tab="${id}">
+            <div class="tab-icon ${state.tab===id?'active':''}">${icon}</div>
+            <div class="tab-label ${state.tab===id?'active':''}">${label}</div>
+          </div>
+        `).join('')}
+      </div>
+      ${renderModal(data)}
+    </div>
+  `;
+}
+
+function habitCard(h,done,streak){
+  return `<div class="card ${done?'done':''}">
+    <div class="check-ring ${done?'done':''}" data-toggle-habit="${h.id}"><span class="check-icon">✓</span></div>
+    <div class="info" data-toggle-habit="${h.id}">
+      <div class="h-name ${done?'done':''}">${h.emoji} ${esc(h.name)}</div>
+      ${h.note?`<div class="h-note">${esc(h.note)}</div>`:''}
+    </div>
+    ${streak>0?`<div class="streak">🔥${streak}</div>`:''}
+    <button class="edit-btn" data-edit-habit="${h.id}">✎</button>
+  </div>`;
+}
+function taskCard(t,done){
+  return `<div class="card ${done?'done':''}">
+    <div class="check-ring task ${done?'done':''}" data-toggle-task="${t.id}"><span class="check-icon">✓</span></div>
+    <div class="info" data-toggle-task="${t.id}">
+      <div class="h-name ${done?'done':''}" style="${done?'text-decoration:line-through':''}">${esc(t.name)}</div>
+      ${t.note?`<div class="h-note">${esc(t.note)}</div>`:''}
+    </div>
+    <button class="edit-btn" data-edit-task="${t.id}">✎</button>
+  </div>`;
+}
+
+function renderModal(data){
+  const open=state.modal!==null;
+  const isHabit=state.modal==='habit'||state.modal==='editHabit';
+  const isTask=state.modal==='task'||state.modal==='editTask';
+  const isEdit=state.modal==='editHabit'||state.modal==='editTask';
+  const f=state.form;
+  return `
+    <div class="overlay ${open?'open':''}" id="modal-overlay">
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-title">${isEdit?(isHabit?'Edit Habit':'Edit Task'):(isHabit?'New Habit':'New Task')}</div>
+        ${isHabit?`
+          <div class="emoji-grid">
+            ${EMOJIS.map(e=>`<button class="emoji-btn ${f.emoji===e?'sel':''}" data-pick-emoji="${e}">${e}</button>`).join('')}
+          </div>
+          <input class="m-input" id="form-name" placeholder="Habit name" maxlength="40" value="${esc(f.name||'')}">
+          <input class="m-input" id="form-note" placeholder="Note (optional)" maxlength="60" style="margin-bottom:12px" value="${esc(f.note||'')}">
+          <div style="font-size:13px;color:rgba(235,235,245,.6);margin-bottom:8px;font-weight:500">Repeat on</div>
+          <div class="day-row">
+            ${DAYS.map(d=>`<button class="day-btn ${(f.days||[]).includes(d)?'sel':''}" data-toggle-day="${d}">${d}</button>`).join('')}
+          </div>
+        `:''}
+        ${isTask?`
+          <input class="m-input" id="form-name" placeholder="Task name" maxlength="60" value="${esc(f.name||'')}">
+          <input class="m-input" id="form-note" placeholder="Note (optional)" maxlength="80" style="margin-bottom:16px" value="${esc(f.note||'')}">
+        `:''}
+        <div class="btn-row">
+          ${isEdit?`<button class="btn-danger" id="modal-delete">Delete</button>`:''}
+          <button class="btn-secondary" id="modal-cancel">Cancel</button>
+          <button class="btn-primary" id="modal-save">${isEdit?'Save':'Add'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════ ADMIN ═══════════
+function renderAdmin(){
+  const users=lget('users',{});
+  const userList=Object.keys(users);
+  const today=getKey(new Date()), todayDay=getDayName(new Date());
+  const allData={};
+  userList.forEach(u=>allData[u]=loadUserData(u));
+
+  return `
+    <div id="root">
+      <div class="nav-bar">
+        <div>
+          <div class="nav-title">👑 Admin</div>
+          <div class="nav-sub">Welcome, Nodir</div>
+        </div>
+        <button class="btn-danger" style="flex:none;padding:8px 14px;font-size:14px" id="admin-signout">Sign Out</button>
+      </div>
+      <div class="admin-summary">
+        <div class="admin-stat"><div class="admin-stat-num" style="color:#0a84ff">${userList.length}</div><div class="admin-stat-lbl">Total Users</div></div>
+        <div class="admin-stat"><div class="admin-stat-num" style="color:#30d158">${userList.reduce((a,u)=>a+allData[u].habits.length,0)}</div><div class="admin-stat-lbl">Total Habits</div></div>
+      </div>
+      <div class="section-lbl">Users</div>
+      <div class="tab-content">
+        ${userList.length===0?`<div style="text-align:center;padding:30px;color:rgba(235,235,245,.4)">No users signed up yet</div>`:''}
+        ${userList.map(uname=>{
+          const data=allData[uname];
+          const tc=data.completions[today]||{};
+          const todayH=data.habits.filter(h=>h.days.includes(todayDay));
+          const doneH=todayH.filter(h=>tc[`h_${h.id}`]).length;
+          const doneT=data.tasks.filter(t=>t.done).length;
+          const isOpen=state.adminSelected===uname;
+          return `
+            <div class="user-card">
+              <div class="user-row" data-select-user="${esc(uname)}">
+                <div class="user-avatar">${uname[0].toUpperCase()}</div>
+                <div style="flex:1">
+                  <div style="font-size:17px;font-weight:600">${esc(uname)}</div>
+                  <div class="user-meta">${data.habits.length} habits · ${data.tasks.length} tasks · ${doneH}/${todayH.length} habits today · ${doneT} tasks done</div>
+                </div>
+                <div style="font-size:18px;color:rgba(235,235,245,.3)">${isOpen?'▾':'▸'}</div>
+              </div>
+              ${isOpen?`
+                <div class="user-detail">
+                  <div class="pw-row"><span style="font-size:14px;color:rgba(235,235,245,.6)">Password</span><span style="font-size:14px;font-weight:600;color:#ff9f0a">${esc(users[uname].password)}</span></div>
+                  <div class="section-lbl" style="padding:0;margin-bottom:10px">Habits</div>
+                  ${data.habits.length===0?`<div style="font-size:14px;color:rgba(235,235,245,.4);margin-bottom:12px">No habits yet</div>`:''}
+                  ${data.habits.map(h=>{
+                    const streak=getHabitStreak(data,h.id);
+                    const mp=getMonthPct(data,h.id);
+                    const done=tc[`h_${h.id}`];
+                    return `<div class="mini-card">
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                        <div style="font-size:15px;font-weight:500">${h.emoji} ${esc(h.name)}</div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                          ${streak>0?`<span style="font-size:13px;color:#ff9f0a">🔥${streak}</span>`:''}
+                          <span class="tag ${done?'done':'pending'}">${done?'Done':'Pending'}</span>
+                        </div>
+                      </div>
+                      <div style="display:flex;gap:12px">
+                        <span style="font-size:12px;color:rgba(235,235,245,.4)">Days: ${h.days.join(', ')}</span>
+                        <span style="font-size:12px;font-weight:600;color:${mp>=70?'#30d158':mp>=40?'#ff9f0a':'#ff453a'}">${mp}% month</span>
+                      </div>
+                    </div>`;
+                  }).join('')}
+                  <div class="section-lbl" style="padding:0;margin:14px 0 10px">Tasks</div>
+                  ${data.tasks.length===0?`<div style="font-size:14px;color:rgba(235,235,245,.4)">No tasks yet</div>`:''}
+                  ${data.tasks.map(t=>`
+                    <div class="mini-card" style="display:flex;justify-content:space-between;align-items:center">
+                      <div style="font-size:15px;color:${t.done?'rgba(235,235,245,.4)':'#fff'}">${esc(t.name)}</div>
+                      <span class="tag ${t.done?'done':'pending'}">${t.done?'Done':'Pending'}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              `:''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════ EVENT HANDLERS ═══════════
+function attachHandlers(){
+  if(state.screen==='login'){
+    document.getElementById('li-submit').onclick=doLogin;
+    document.getElementById('li-switch').onclick=()=>{state.loginMode=state.loginMode==='login'?'signup':'login';state.loginErr='';render();};
+    document.getElementById('li-pass').onkeydown=e=>{if(e.key==='Enter')doLogin();};
+    return;
+  }
+  if(state.screen==='admin'){
+    document.getElementById('admin-signout').onclick=()=>{state.currentUser=null;state.screen='login';state.adminSelected=null;render();};
+    document.querySelectorAll('[data-select-user]').forEach(el=>{
+      el.onclick=()=>{const u=el.getAttribute('data-select-user');state.adminSelected=state.adminSelected===u?null:u;render();};
+    });
+    return;
+  }
+  // app screen
+  const uname=state.currentUser.username;
+  let data=loadUserData(uname);
+
+  document.querySelectorAll('[data-tab]').forEach(el=>{
+    el.onclick=()=>{state.tab=el.getAttribute('data-tab');render();};
+  });
+
+  document.querySelectorAll('[data-toggle-habit]').forEach(el=>{
+    el.onclick=()=>{
+      const id=el.getAttribute('data-toggle-habit');
+      const vKey=getKey(state.viewDate);
+      data.completions[vKey]=data.completions[vKey]||{};
+      data.completions[vKey][`h_${id}`]=!data.completions[vKey][`h_${id}`];
+      saveUserData(uname,data); render();
+    };
+  });
+  document.querySelectorAll('[data-toggle-task]').forEach(el=>{
+    el.onclick=()=>{
+      const id=el.getAttribute('data-toggle-task');
+      const t=data.tasks.find(x=>x.id===id);
+      if(t){t.done=!t.done;t.doneAt=t.done?getKey(new Date()):null;}
+      saveUserData(uname,data); render();
+    };
+  });
+
+  const dp=document.getElementById('date-prev'), dn=document.getElementById('date-next');
+  if(dp) dp.onclick=()=>{
+    const today=new Date();today.setHours(0,0,0,0);
+    const nd=new Date(state.viewDate); nd.setDate(nd.getDate()-1); nd.setHours(0,0,0,0);
+    if(nd<=today){state.viewDate=nd;render();}
+  };
+  if(dn) dn.onclick=()=>{
+    const today=new Date();today.setHours(0,0,0,0);
+    const nd=new Date(state.viewDate); nd.setDate(nd.getDate()+1); nd.setHours(0,0,0,0);
+    if(nd<=today){state.viewDate=nd;render();}
+  };
+
+  const openAdd=document.getElementById('open-add');
+  if(openAdd) openAdd.onclick=()=>{
+    if(state.tab==='habits'){state.form={name:'',note:'',emoji:'💧',days:['Mon','Tue','Wed','Thu','Fri']};state.editTarget=null;state.modal='habit';}
+    else{state.form={name:'',note:''};state.editTarget=null;state.modal='task';}
+    render();
+  };
+
+  document.querySelectorAll('[data-edit-habit]').forEach(el=>{
+    el.onclick=()=>{
+      const id=el.getAttribute('data-edit-habit');
+      const h=data.habits.find(x=>x.id===id);
+      state.form={...h}; state.editTarget=id; state.modal='editHabit'; render();
+    };
+  });
+  document.querySelectorAll('[data-del-habit]').forEach(el=>{
+    el.onclick=(e)=>{
+      e.stopPropagation();
+      const id=el.getAttribute('data-del-habit');
+      data.habits=data.habits.filter(h=>h.id!==id);
+      saveUserData(uname,data); render();
+    };
+  });
+  document.querySelectorAll('[data-edit-task]').forEach(el=>{
+    el.onclick=()=>{
+      const id=el.getAttribute('data-edit-task');
+      const t=data.tasks.find(x=>x.id===id);
+      state.form={...t}; state.editTarget=id; state.modal='editTask'; render();
+    };
+  });
+
+  const signout=document.getElementById('signout-btn');
+  if(signout) signout.onclick=()=>{state.currentUser=null;state.screen='login';state.tab='today';render();};
+
+  // Modal handlers
+  const overlay=document.getElementById('modal-overlay');
+  if(overlay){
+    overlay.onclick=(e)=>{if(e.target===overlay){state.modal=null;render();}};
+    document.querySelectorAll('[data-pick-emoji]').forEach(el=>{
+      el.onclick=()=>{state.form.emoji=el.getAttribute('data-pick-emoji');render();};
+    });
+    document.querySelectorAll('[data-toggle-day]').forEach(el=>{
+      el.onclick=()=>{
+        const d=el.getAttribute('data-toggle-day');
+        state.form.days=state.form.days||[];
+        state.form.days=state.form.days.includes(d)?state.form.days.filter(x=>x!==d):[...state.form.days,d];
+        render();
+      };
+    });
+    const nameEl=document.getElementById('form-name'), noteEl=document.getElementById('form-note');
+    if(nameEl) nameEl.oninput=()=>{state.form.name=nameEl.value;};
+    if(noteEl) noteEl.oninput=()=>{state.form.note=noteEl.value;};
+
+    const cancelBtn=document.getElementById('modal-cancel');
+    if(cancelBtn) cancelBtn.onclick=()=>{state.modal=null;render();};
+
+    const delBtn=document.getElementById('modal-delete');
+    if(delBtn) delBtn.onclick=()=>{
+      if(state.modal==='editHabit'){data.habits=data.habits.filter(h=>h.id!==state.editTarget);}
+      else{data.tasks=data.tasks.filter(t=>t.id!==state.editTarget);}
+      saveUserData(uname,data); state.modal=null; render();
+    };
+
+    const saveBtn=document.getElementById('modal-save');
+    if(saveBtn) saveBtn.onclick=()=>{
+      const isHabit=state.modal==='habit'||state.modal==='editHabit';
+      const f=state.form;
+      if(!f.name||!f.name.trim())return;
+      if(isHabit){
+        if(!(f.days&&f.days.length))return;
+        const cleanData={...f,name:f.name.trim(),note:(f.note||'').trim()};
+        if(state.editTarget){
+          data.habits=data.habits.map(h=>h.id===state.editTarget?{...h,...cleanData}:h);
+        }else{
+          data.habits.push({id:Date.now().toString(),...cleanData,createdAt:getKey(new Date())});
+        }
+      }else{
+        const cleanData={...f,name:f.name.trim(),note:(f.note||'').trim()};
+        if(state.editTarget){
+          data.tasks=data.tasks.map(t=>t.id===state.editTarget?{...t,...cleanData}:t);
+        }else{
+          data.tasks.push({id:Date.now().toString(),...cleanData,done:false,createdAt:getKey(new Date())});
+        }
+      }
+      saveUserData(uname,data); state.modal=null; render();
+    };
+  }
+}
+
+render();
+</script>
+</body>
+</html>
