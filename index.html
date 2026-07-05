@@ -62,8 +62,10 @@ body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF
 .emoji-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
 .emoji-btn{width:100%;aspect-ratio:1;border-radius:10px;background:#2c2c2e;border:2px solid transparent;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .emoji-btn.sel{border-color:#0a84ff;background:rgba(10,132,255,.2)}
-.m-input{width:100%;background:#2c2c2e;border:none;border-radius:10px;padding:14px;color:#fff;font-size:17px;font-family:inherit;outline:none;margin-bottom:10px;-webkit-appearance:none}
+.m-input{width:100%;background:#2c2c2e;border:none;border-radius:10px;padding:14px;color:#fff;font-size:17px;font-family:inherit;outline:none;margin-bottom:10px;-webkit-appearance:none;color-scheme:dark}
 .m-input::placeholder{color:rgba(235,235,245,.3)}
+.field-label{font-size:13px;color:rgba(235,235,245,.6);margin-bottom:8px;font-weight:500}
+.field-hint{font-size:12px;color:rgba(235,235,245,.35);margin-top:-6px;margin-bottom:14px}
 .day-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
 .day-btn{padding:6px 10px;border-radius:8px;background:#2c2c2e;color:rgba(235,235,245,.6);border:none;font-size:14px;cursor:pointer;font-family:inherit}
 .day-btn.sel{background:#0a84ff;color:#fff;font-weight:600}
@@ -93,14 +95,12 @@ body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF
 .settings-danger{color:#ff453a;cursor:pointer}
 .tab-content{padding:0 16px}
 .footer{text-align:center;color:rgba(235,235,245,.2);font-size:13px;padding-bottom:20px}
-/* Login */
 .login-wrap{background:#000;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
 .login-icon{font-size:56px;margin-bottom:16px}
 .login-title{font-size:28px;font-weight:700;margin-bottom:4px}
 .login-sub{font-size:15px;color:rgba(235,235,245,.6);margin-bottom:40px}
 .login-form{width:100%;max-width:340px}
 .login-err{color:#ff453a;font-size:14px;margin-bottom:12px;text-align:center}
-/* Admin */
 .admin-summary{padding:0 16px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .admin-stat{background:#1c1c1e;border-radius:12px;padding:14px 16px;text-align:center}
 .admin-stat-num{font-size:28px;font-weight:700}
@@ -115,10 +115,31 @@ body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF
 .tag{font-size:12px;padding:2px 8px;border-radius:6px;font-weight:600}
 .tag.done{background:rgba(48,209,88,.2);color:#30d158}
 .tag.pending{background:rgba(255,69,58,.2);color:#ff453a}
+.tag.scheduled{background:rgba(10,132,255,.2);color:#0a84ff}
+/* Celebration */
+#confetti-canvas{position:fixed;inset:0;pointer-events:none;z-index:200}
+.celebrate-overlay{position:fixed;inset:0;z-index:201;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0);opacity:0;pointer-events:none;transition:opacity .3s ease}
+.celebrate-overlay.open{opacity:1;pointer-events:all;background:rgba(0,0,0,.55)}
+.celebrate-card{background:#1c1c1e;border-radius:24px;padding:28px 24px;text-align:center;max-width:360px;width:88vw;transform:scale(.85);transition:transform .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.celebrate-overlay.open .celebrate-card{transform:scale(1)}
+.celebrate-video{width:100%;max-height:56vh;border-radius:16px;margin-bottom:14px;display:none;object-fit:cover;background:#000}
+.celebrate-emoji{font-size:56px;margin-bottom:14px;animation:bounce 1s ease infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.celebrate-title{font-size:22px;font-weight:700;margin-bottom:8px}
+.celebrate-text{font-size:15px;color:rgba(235,235,245,.6);line-height:1.4}
 </style>
 </head>
 <body>
 <div id="root"></div>
+<canvas id="confetti-canvas"></canvas>
+<div class="celebrate-overlay" id="celebrate-overlay" onclick="if(event.target===this)hideCelebration()">
+  <div class="celebrate-card">
+    <video id="celebrate-video" class="celebrate-video" playsinline></video>
+    <div class="celebrate-emoji" id="celebrate-emoji">🎉</div>
+    <div class="celebrate-title">All done for today!</div>
+    <div class="celebrate-text" id="celebrate-text"></div>
+  </div>
+</div>
 
 <script>
 const ADMIN = { username: "Nodir", password: "2002Nodir" };
@@ -126,6 +147,13 @@ const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const EMOJIS = ['💧','🏃','📚','😴','🧘','🥗','💊','🎯','✏️','🎵','🏋️','🧹','🌅','💻','🚴','🍎','🫀','🧠','🎨','🛌'];
+const CELEBRATION_PHRASES = [
+  "Amazing work! You crushed every habit and task today!",
+  "All done! You are on fire today!",
+  "Incredible! You completed everything on your list!",
+  "Way to go! Today is officially a win!",
+  "Fantastic job finishing everything today!"
+];
 
 function getKey(d){return d.toISOString().slice(0,10)}
 function getDayName(d){return DAY_NAMES[d.getDay()]}
@@ -135,18 +163,122 @@ function getDateStr(date){
   const diff=Math.round((d-today)/86400000);
   if(diff===0)return `Today · ${MONTHS[date.getMonth()]} ${date.getDate()}`;
   if(diff===-1)return `Yesterday · ${MONTHS[date.getMonth()]} ${date.getDate()}`;
+  if(diff===1)return `Tomorrow · ${MONTHS[date.getMonth()]} ${date.getDate()}`;
   const days=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   return `${days[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`;
 }
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
-// ── Storage (localStorage-backed, works standalone) ──
 function lget(key,def){try{const v=localStorage.getItem(key);return v?JSON.parse(v):def}catch{return def}}
 function lset(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch{}}
 
+// ── Celebration effects ──
+function speak(text){
+  try{
+    if('speechSynthesis' in window){
+      window.speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(text);
+      u.rate=1; u.pitch=1.05; u.volume=1;
+      window.speechSynthesis.speak(u);
+    }
+  }catch(e){}
+}
+function launchConfetti(){
+  const canvas=document.getElementById('confetti-canvas');
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  const ctx=canvas.getContext('2d');
+  const colors=['#0a84ff','#ff453a','#30d158','#ff9f0a','#ffffff','#bf5af2'];
+  let particles=[];
+  for(let i=0;i<130;i++){
+    particles.push({
+      x:Math.random()*canvas.width,
+      y:-20-Math.random()*canvas.height*0.6,
+      w:5+Math.random()*5,
+      h:8+Math.random()*8,
+      color:colors[Math.floor(Math.random()*colors.length)],
+      vy:2.5+Math.random()*3.5,
+      vx:-1.5+Math.random()*3,
+      rot:Math.random()*360,
+      vr:-6+Math.random()*12
+    });
+  }
+  let frame=0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    particles.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr;
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot*Math.PI/180);
+      ctx.fillStyle=p.color;
+      ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      ctx.restore();
+    });
+    frame++;
+    if(frame<170){ requestAnimationFrame(draw); }
+    else{ ctx.clearRect(0,0,canvas.width,canvas.height); }
+  }
+  draw();
+}
+function hideCelebration(){
+  const overlay=document.getElementById('celebrate-overlay');
+  const video=document.getElementById('celebrate-video');
+  overlay.classList.remove('open');
+  video.pause();
+  video.style.display='none';
+  document.getElementById('celebrate-emoji').style.display='block';
+}
+function showCelebration(){
+  const overlay=document.getElementById('celebrate-overlay');
+  const video=document.getElementById('celebrate-video');
+  const emoji=document.getElementById('celebrate-emoji');
+  const phrase=CELEBRATION_PHRASES[Math.floor(Math.random()*CELEBRATION_PHRASES.length)];
+  document.getElementById('celebrate-text').textContent=phrase;
+  overlay.classList.add('open');
+
+  function fallbackConfettiVoice(){
+    video.style.display='none';
+    emoji.style.display='block';
+    launchConfetti();
+    speak(phrase);
+    setTimeout(hideCelebration, 3800);
+  }
+
+  video.muted=false;
+  video.currentTime=0;
+  video.src='celebration.mp4';
+  video.style.display='block';
+  emoji.style.display='none';
+  video.onended=()=>{ hideCelebration(); };
+  video.onerror=fallbackConfettiVoice;
+  const playPromise=video.play();
+  if(playPromise&&playPromise.catch){
+    playPromise.then(()=>{ launchConfetti(); }).catch(fallbackConfettiVoice);
+  }
+}
+function maybeCelebrate(data){
+  const today=getKey(new Date());
+  if(state.celebratedToday===today) return;
+  const todayDay=getDayName(new Date());
+  const todayComp=data.completions[today]||{};
+  const todayHabits=data.habits.filter(h=>h.days.includes(todayDay));
+  const doneHabitsCount=todayHabits.filter(h=>todayComp[`h_${h.id}`]).length;
+  const visibleTasks=getVisibleTasksFor(data,today);
+  const doneTasksCount=visibleTasks.filter(t=>t.done).length;
+  const total=todayHabits.length+visibleTasks.length;
+  const done=doneHabitsCount+doneTasksCount;
+  if(total>0 && done===total){
+    state.celebratedToday=today;
+    showCelebration();
+  }
+}
+function getVisibleTasksFor(data,refKey){
+  return data.tasks.filter(t=>!t.dueDate || t.dueDate<=refKey);
+}
+
 // ── Global state ──
 let state = {
-  screen: 'login', // login | app | admin
+  screen: 'login',
   loginMode: 'login',
   loginErr: '',
   currentUser: null,
@@ -156,6 +288,7 @@ let state = {
   editTarget: null,
   form: {},
   adminSelected: null,
+  celebratedToday: null,
 };
 
 function render(){
@@ -243,15 +376,26 @@ function renderApp(){
   const data=loadUserData(uname);
   const vKey=getKey(state.viewDate), vDay=getDayName(state.viewDate);
   const vComp=data.completions[vKey]||{};
-  const isToday=getKey(state.viewDate)===getKey(new Date());
+  const todayReal=getKey(new Date());
+  const todayD=new Date();todayD.setHours(0,0,0,0);
+  const vd=new Date(state.viewDate);vd.setHours(0,0,0,0);
+  const isToday=vd.getTime()===todayD.getTime();
+  const isFuture=vd.getTime()>todayD.getTime();
+  const isPast=vd.getTime()<todayD.getTime();
 
   const viewHabits=data.habits.filter(h=>h.days.includes(vDay));
   const doneHabits=viewHabits.filter(h=>vComp[`h_${h.id}`]);
   const pendingHabits=viewHabits.filter(h=>!vComp[`h_${h.id}`]);
   const habitPct=viewHabits.length?Math.round(doneHabits.length/viewHabits.length*100):0;
-  const doneTasks=data.tasks.filter(t=>t.done);
-  const pendingTasks=data.tasks.filter(t=>!t.done);
-  const taskPct=data.tasks.length?Math.round(doneTasks.length/data.tasks.length*100):0;
+
+  const viewVisibleTasks=getVisibleTasksFor(data,vKey);
+  const doneTasks=viewVisibleTasks.filter(t=>t.done);
+  const pendingTasks=viewVisibleTasks.filter(t=>!t.done);
+  const taskPct=viewVisibleTasks.length?Math.round(doneTasks.length/viewVisibleTasks.length*100):0;
+
+  const tasksTabVisible=getVisibleTasksFor(data,todayReal);
+  const tabDoneTasks=tasksTabVisible.filter(t=>t.done);
+  const tabPendingTasks=tasksTabVisible.filter(t=>!t.done);
 
   let body='';
   if(state.tab==='today'){
@@ -260,16 +404,17 @@ function renderApp(){
         <button id="date-prev">‹</button>
         <div style="text-align:center">
           <div class="date-title">${getDateStr(state.viewDate)}</div>
-          ${!isToday?'<div class="date-sub">Editing past day</div>':''}
+          ${isPast?'<div class="date-sub">Editing past day</div>':''}
+          ${isFuture?'<div class="date-sub" style="color:#0a84ff">Previewing upcoming day</div>':''}
         </div>
-        <button id="date-next" ${isToday?'disabled':''}>›</button>
+        <button id="date-next">›</button>
       </div>
       <div class="prog-wrap">
         <div class="prog-header"><span class="prog-label">Habits</span><span class="prog-count">${doneHabits.length} / ${viewHabits.length}</span></div>
         <div class="prog-bg"><div class="prog-fill ${habitPct===100?'full':''}" style="width:${habitPct}%"></div></div>
       </div>
       <div class="prog-wrap">
-        <div class="prog-header"><span class="prog-label">Tasks</span><span class="prog-count">${doneTasks.length} / ${data.tasks.length}</span></div>
+        <div class="prog-header"><span class="prog-label">Tasks</span><span class="prog-count">${doneTasks.length} / ${viewVisibleTasks.length}</span></div>
         <div class="prog-bg"><div class="prog-fill ${taskPct===100?'full':''}" style="width:${taskPct}%"></div></div>
       </div>
       ${viewHabits.length===0?`<div class="empty"><div class="empty-icon">✨</div><div class="empty-title">No habits today</div><div class="empty-sub">Go to Habits tab to add some</div></div>`:''}
@@ -301,9 +446,9 @@ function renderApp(){
     `;
   } else if(state.tab==='tasks'){
     body=`
-      ${data.tasks.length===0?`<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No tasks yet</div><div class="empty-sub">Tap + to add a task</div></div>`:''}
-      ${pendingTasks.length>0?`<div class="section-lbl">To do</div><div class="task-list">${pendingTasks.map(t=>taskCard(t,false)).join('')}</div>`:''}
-      ${doneTasks.length>0?`<div class="section-lbl">Completed</div><div class="task-list">${doneTasks.map(t=>taskCard(t,true)).join('')}</div>`:''}
+      ${tasksTabVisible.length===0?`<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No tasks yet</div><div class="empty-sub">Tap + to add a task</div></div>`:''}
+      ${tabPendingTasks.length>0?`<div class="section-lbl">To do</div><div class="task-list">${tabPendingTasks.map(t=>taskCard(t,false)).join('')}</div>`:''}
+      ${tabDoneTasks.length>0?`<div class="section-lbl">Completed</div><div class="task-list">${tabDoneTasks.map(t=>taskCard(t,true)).join('')}</div>`:''}
     `;
   } else if(state.tab==='stats'){
     body=`
@@ -412,14 +557,17 @@ function renderModal(data){
           </div>
           <input class="m-input" id="form-name" placeholder="Habit name" maxlength="40" value="${esc(f.name||'')}">
           <input class="m-input" id="form-note" placeholder="Note (optional)" maxlength="60" style="margin-bottom:12px" value="${esc(f.note||'')}">
-          <div style="font-size:13px;color:rgba(235,235,245,.6);margin-bottom:8px;font-weight:500">Repeat on</div>
+          <div class="field-label">Repeat on</div>
           <div class="day-row">
             ${DAYS.map(d=>`<button class="day-btn ${(f.days||[]).includes(d)?'sel':''}" data-toggle-day="${d}">${d}</button>`).join('')}
           </div>
         `:''}
         ${isTask?`
           <input class="m-input" id="form-name" placeholder="Task name" maxlength="60" value="${esc(f.name||'')}">
-          <input class="m-input" id="form-note" placeholder="Note (optional)" maxlength="80" style="margin-bottom:16px" value="${esc(f.note||'')}">
+          <input class="m-input" id="form-note" placeholder="Note (optional)" maxlength="80" value="${esc(f.note||'')}">
+          <div class="field-label">Due date (optional)</div>
+          <input class="m-input" id="form-due" type="date" value="${esc(f.dueDate||'')}">
+          <div class="field-hint">Leave empty to show now. Set a date to keep it hidden until then.</div>
         `:''}
         <div class="btn-row">
           ${isEdit?`<button class="btn-danger" id="modal-delete">Delete</button>`:''}
@@ -497,12 +645,15 @@ function renderAdmin(){
                   }).join('')}
                   <div class="section-lbl" style="padding:0;margin:14px 0 10px">Tasks</div>
                   ${data.tasks.length===0?`<div style="font-size:14px;color:rgba(235,235,245,.4)">No tasks yet</div>`:''}
-                  ${data.tasks.map(t=>`
-                    <div class="mini-card" style="display:flex;justify-content:space-between;align-items:center">
+                  ${data.tasks.map(t=>{
+                    const isFuture=t.dueDate && t.dueDate>today;
+                    const label=isFuture?`Scheduled ${t.dueDate}`:(t.done?'Done':'Pending');
+                    const cls=isFuture?'scheduled':(t.done?'done':'pending');
+                    return `<div class="mini-card" style="display:flex;justify-content:space-between;align-items:center">
                       <div style="font-size:15px;color:${t.done?'rgba(235,235,245,.4)':'#fff'}">${esc(t.name)}</div>
-                      <span class="tag ${t.done?'done':'pending'}">${t.done?'Done':'Pending'}</span>
-                    </div>
-                  `).join('')}
+                      <span class="tag ${cls}">${label}</span>
+                    </div>`;
+                  }).join('')}
                 </div>
               `:''}
             </div>
@@ -528,7 +679,6 @@ function attachHandlers(){
     });
     return;
   }
-  // app screen
   const uname=state.currentUser.username;
   let data=loadUserData(uname);
 
@@ -542,7 +692,9 @@ function attachHandlers(){
       const vKey=getKey(state.viewDate);
       data.completions[vKey]=data.completions[vKey]||{};
       data.completions[vKey][`h_${id}`]=!data.completions[vKey][`h_${id}`];
-      saveUserData(uname,data); render();
+      saveUserData(uname,data);
+      maybeCelebrate(data);
+      render();
     };
   });
   document.querySelectorAll('[data-toggle-task]').forEach(el=>{
@@ -550,26 +702,27 @@ function attachHandlers(){
       const id=el.getAttribute('data-toggle-task');
       const t=data.tasks.find(x=>x.id===id);
       if(t){t.done=!t.done;t.doneAt=t.done?getKey(new Date()):null;}
-      saveUserData(uname,data); render();
+      saveUserData(uname,data);
+      maybeCelebrate(data);
+      render();
     };
   });
 
   const dp=document.getElementById('date-prev'), dn=document.getElementById('date-next');
   if(dp) dp.onclick=()=>{
-    const today=new Date();today.setHours(0,0,0,0);
     const nd=new Date(state.viewDate); nd.setDate(nd.getDate()-1); nd.setHours(0,0,0,0);
-    if(nd<=today){state.viewDate=nd;render();}
+    state.viewDate=nd;render();
   };
   if(dn) dn.onclick=()=>{
-    const today=new Date();today.setHours(0,0,0,0);
     const nd=new Date(state.viewDate); nd.setDate(nd.getDate()+1); nd.setHours(0,0,0,0);
-    if(nd<=today){state.viewDate=nd;render();}
+    const maxDate=new Date(); maxDate.setDate(maxDate.getDate()+90);
+    if(nd<=maxDate){state.viewDate=nd;render();}
   };
 
   const openAdd=document.getElementById('open-add');
   if(openAdd) openAdd.onclick=()=>{
     if(state.tab==='habits'){state.form={name:'',note:'',emoji:'💧',days:['Mon','Tue','Wed','Thu','Fri']};state.editTarget=null;state.modal='habit';}
-    else{state.form={name:'',note:''};state.editTarget=null;state.modal='task';}
+    else{state.form={name:'',note:'',dueDate:''};state.editTarget=null;state.modal='task';}
     render();
   };
 
@@ -592,14 +745,13 @@ function attachHandlers(){
     el.onclick=()=>{
       const id=el.getAttribute('data-edit-task');
       const t=data.tasks.find(x=>x.id===id);
-      state.form={...t}; state.editTarget=id; state.modal='editTask'; render();
+      state.form={...t,dueDate:t.dueDate||''}; state.editTarget=id; state.modal='editTask'; render();
     };
   });
 
   const signout=document.getElementById('signout-btn');
   if(signout) signout.onclick=()=>{state.currentUser=null;state.screen='login';state.tab='today';render();};
 
-  // Modal handlers
   const overlay=document.getElementById('modal-overlay');
   if(overlay){
     overlay.onclick=(e)=>{if(e.target===overlay){state.modal=null;render();}};
@@ -614,9 +766,10 @@ function attachHandlers(){
         render();
       };
     });
-    const nameEl=document.getElementById('form-name'), noteEl=document.getElementById('form-note');
+    const nameEl=document.getElementById('form-name'), noteEl=document.getElementById('form-note'), dueEl=document.getElementById('form-due');
     if(nameEl) nameEl.oninput=()=>{state.form.name=nameEl.value;};
     if(noteEl) noteEl.oninput=()=>{state.form.note=noteEl.value;};
+    if(dueEl) dueEl.oninput=()=>{state.form.dueDate=dueEl.value;};
 
     const cancelBtn=document.getElementById('modal-cancel');
     if(cancelBtn) cancelBtn.onclick=()=>{state.modal=null;render();};
@@ -642,7 +795,7 @@ function attachHandlers(){
           data.habits.push({id:Date.now().toString(),...cleanData,createdAt:getKey(new Date())});
         }
       }else{
-        const cleanData={...f,name:f.name.trim(),note:(f.note||'').trim()};
+        const cleanData={...f,name:f.name.trim(),note:(f.note||'').trim(),dueDate:f.dueDate||null};
         if(state.editTarget){
           data.tasks=data.tasks.map(t=>t.id===state.editTarget?{...t,...cleanData}:t);
         }else{
