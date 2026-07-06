@@ -15,11 +15,12 @@ body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF
 .habit-list,.task-list{padding:0 16px;margin-bottom:20px}
 .card{background:#1c1c1e;border-radius:12px;padding:13px 14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;transition:opacity .15s}
 .card.done{opacity:.75}
-.check-ring{width:28px;height:28px;border-radius:50%;border:2px solid #3a3a3c;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all .25s ease}
+.check-ring{width:28px;height:28px;min-width:28px;min-height:28px;border-radius:50%;border:2px solid #3a3a3c;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all .25s ease}
 .check-ring.done{background:#30d158;border-color:#30d158}
 .check-ring.task{border-radius:4px}
 .check-icon{opacity:0;font-size:15px;font-weight:700;color:#fff;transition:opacity .2s}
 .check-ring.done .check-icon{opacity:1}
+.pct-text{font-size:9px;font-weight:700;color:#0a84ff}
 .info{flex:1;min-width:0;cursor:pointer}
 .h-name{font-size:17px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .h-name.done{color:rgba(235,235,245,.5)}
@@ -40,7 +41,6 @@ body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF
 .prog-fill.full{background:#30d158}
 .date-nav{display:flex;align-items:center;justify-content:space-between;margin:0 16px 16px;background:#1c1c1e;border-radius:12px;padding:10px 14px}
 .date-nav button{background:none;border:none;color:#0a84ff;font-size:22px;cursor:pointer;padding:0 8px;line-height:1}
-.date-nav button:disabled{opacity:.3;cursor:default}
 .date-title{font-size:15px;font-weight:600}
 .date-sub{font-size:12px;color:#ff9f0a;margin-top:2px}
 .nav-bar{padding:20px 20px 16px;display:flex;align-items:flex-end;justify-content:space-between}
@@ -116,7 +116,6 @@ body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF
 .tag.done{background:rgba(48,209,88,.2);color:#30d158}
 .tag.pending{background:rgba(255,69,58,.2);color:#ff453a}
 .tag.scheduled{background:rgba(10,132,255,.2);color:#0a84ff}
-/* Celebration */
 #confetti-canvas{position:fixed;inset:0;pointer-events:none;z-index:200}
 .celebrate-overlay{position:fixed;inset:0;z-index:201;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0);opacity:0;pointer-events:none;transition:opacity .3s ease}
 .celebrate-overlay.open{opacity:1;pointer-events:all;background:rgba(0,0,0,.55)}
@@ -127,6 +126,11 @@ body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF
 @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 .celebrate-title{font-size:22px;font-weight:700;margin-bottom:8px}
 .celebrate-text{font-size:15px;color:rgba(235,235,245,.6);line-height:1.4}
+.quick-log-emoji{font-size:34px;margin-bottom:6px;text-align:center}
+.quick-log-name{font-size:20px;font-weight:700;margin-bottom:16px;text-align:center}
+.log-row{display:flex;gap:8px;margin-bottom:10px}
+.log-minus{flex:0 0 56px;background:#2c2c2e;color:#fff;border:none;border-radius:12px;font-size:20px;font-weight:700;cursor:pointer}
+.log-add{flex:0 0 84px;background:#0a84ff;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer}
 </style>
 </head>
 <body>
@@ -155,7 +159,12 @@ const CELEBRATION_PHRASES = [
   "Fantastic job finishing everything today!"
 ];
 
-function getKey(d){return d.toISOString().slice(0,10)}
+function getKey(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
 function getDayName(d){return DAY_NAMES[d.getDay()]}
 function getDateStr(date){
   const today=new Date();today.setHours(0,0,0,0);
@@ -172,7 +181,6 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function lget(key,def){try{const v=localStorage.getItem(key);return v?JSON.parse(v):def}catch{return def}}
 function lset(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch{}}
 
-// ── Celebration effects ──
 function speak(text){
   try{
     if('speechSynthesis' in window){
@@ -259,6 +267,9 @@ function showCelebration(){
     }).catch(fallbackConfettiVoice);
   }
 }
+function getVisibleTasksFor(data,refKey){
+  return data.tasks.filter(t=>!t.dueDate || t.dueDate<=refKey);
+}
 function maybeCelebrate(data){
   const today=getKey(new Date());
   if(state.celebratedToday===today) return;
@@ -274,9 +285,6 @@ function maybeCelebrate(data){
     state.celebratedToday=today;
     showCelebration();
   }
-}
-function getVisibleTasksFor(data,refKey){
-  return data.tasks.filter(t=>!t.dueDate || t.dueDate<=refKey);
 }
 
 // ── Global state ──
@@ -372,6 +380,19 @@ function getMonthPct(data,id){
   }
   return scheduled?Math.round(done/scheduled*100):0;
 }
+function getAmount(data,id,dateKey){
+  return (data.completions[dateKey] && data.completions[dateKey][`amt_${id}`]) || 0;
+}
+function adjustAmount(data,id,delta){
+  const vKey=getKey(state.viewDate);
+  data.completions[vKey]=data.completions[vKey]||{};
+  let val=(data.completions[vKey][`amt_${id}`]||0)+delta;
+  if(val<0)val=0;
+  data.completions[vKey][`amt_${id}`]=val;
+  const habit=data.habits.find(h=>h.id===id);
+  const target=(habit&&habit.target)||1;
+  data.completions[vKey][`h_${id}`]=val>=target;
+}
 
 // ═══════════ USER APP ═══════════
 function renderApp(){
@@ -421,9 +442,9 @@ function renderApp(){
         <div class="prog-bg"><div class="prog-fill ${taskPct===100?'full':''}" style="width:${taskPct}%"></div></div>
       </div>
       ${viewHabits.length===0?`<div class="empty"><div class="empty-icon">✨</div><div class="empty-title">No habits today</div><div class="empty-sub">Go to Habits tab to add some</div></div>`:''}
-      ${pendingHabits.length>0?`<div class="section-lbl">Habits to do</div><div class="habit-list">${pendingHabits.map(h=>habitCard(h,false,getHabitStreak(data,h.id))).join('')}</div>`:''}
+      ${pendingHabits.length>0?`<div class="section-lbl">Habits to do</div><div class="habit-list">${pendingHabits.map(h=>habitCard(h,false,getHabitStreak(data,h.id),data)).join('')}</div>`:''}
       ${pendingTasks.length>0?`<div class="section-lbl">Tasks</div><div class="task-list">${pendingTasks.map(t=>taskCard(t,false)).join('')}</div>`:''}
-      ${(doneHabits.length>0||doneTasks.length>0)?`<div class="section-lbl">Completed</div><div class="habit-list">${doneHabits.map(h=>habitCard(h,true,getHabitStreak(data,h.id))).join('')}${doneTasks.map(t=>taskCard(t,true)).join('')}</div>`:''}
+      ${(doneHabits.length>0||doneTasks.length>0)?`<div class="section-lbl">Completed</div><div class="habit-list">${doneHabits.map(h=>habitCard(h,true,getHabitStreak(data,h.id),data)).join('')}${doneTasks.map(t=>taskCard(t,true)).join('')}</div>`:''}
     `;
   } else if(state.tab==='habits'){
     body=`
@@ -436,6 +457,7 @@ function renderApp(){
               <div style="flex:1">
                 <div style="font-size:17px;font-weight:500">${esc(h.name)}</div>
                 ${h.note?`<div class="h-note">${esc(h.note)}</div>`:''}
+                ${h.trackType==='amount'?`<div class="h-note">Target: ${h.target} ${esc(h.unit||'')} / day</div>`:''}
               </div>
               <button class="edit-btn" data-edit-habit="${h.id}">✎</button>
               <button class="del-btn" data-del-habit="${h.id}">✕</button>
@@ -521,7 +543,22 @@ function renderApp(){
   `;
 }
 
-function habitCard(h,done,streak){
+function habitCard(h,done,streak,data){
+  if(h.trackType==='amount'){
+    const vKey=getKey(state.viewDate);
+    const current=getAmount(data,h.id,vKey);
+    const target=h.target||1;
+    const pct=Math.min(100,Math.round((current/target)*100));
+    return `<div class="card ${done?'done':''}">
+      <div class="check-ring ${done?'done':''}" data-open-log="${h.id}">${done?'<span class="check-icon" style="opacity:1">✓</span>':`<span class="pct-text">${pct}%</span>`}</div>
+      <div class="info" data-open-log="${h.id}">
+        <div class="h-name ${done?'done':''}">${h.emoji} ${esc(h.name)}</div>
+        <div class="h-note">${current} / ${target} ${esc(h.unit||'')}</div>
+      </div>
+      ${streak>0?`<div class="streak">🔥${streak}</div>`:''}
+      <button class="edit-btn" data-edit-habit="${h.id}">✎</button>
+    </div>`;
+  }
   return `<div class="card ${done?'done':''}">
     <div class="check-ring ${done?'done':''}" data-toggle-habit="${h.id}"><span class="check-icon">✓</span></div>
     <div class="info" data-toggle-habit="${h.id}">
@@ -548,7 +585,39 @@ function renderModal(data){
   const isHabit=state.modal==='habit'||state.modal==='editHabit';
   const isTask=state.modal==='task'||state.modal==='editTask';
   const isEdit=state.modal==='editHabit'||state.modal==='editTask';
+  const isLog=state.modal==='logHabit';
   const f=state.form;
+
+  if(isLog){
+    const habit=data.habits.find(h=>h.id===state.editTarget);
+    if(!habit) return `<div class="overlay" id="modal-overlay"></div>`;
+    const vKey=getKey(state.viewDate);
+    const current=getAmount(data,habit.id,vKey);
+    const target=habit.target||1;
+    const pct=Math.min(100,Math.round((current/target)*100));
+    return `
+      <div class="overlay ${open?'open':''}" id="modal-overlay">
+        <div class="sheet">
+          <div class="handle"></div>
+          <div class="quick-log-emoji">${habit.emoji}</div>
+          <div class="quick-log-name">${esc(habit.name)}</div>
+          <div class="prog-wrap" style="margin:0 0 16px;padding:14px 16px">
+            <div class="prog-header"><span class="prog-label">${current} / ${target} ${esc(habit.unit||'')}</span><span class="prog-count">${pct}%</span></div>
+            <div class="prog-bg"><div class="prog-fill ${pct>=100?'full':''}" style="width:${Math.min(100,pct)}%"></div></div>
+          </div>
+          <div class="log-row">
+            <button class="log-minus" id="log-minus1">−1</button>
+            <input class="m-input" id="log-amount-input" type="number" step="any" placeholder="Amount to add" style="margin-bottom:0">
+            <button class="log-add" id="log-add-btn">Add</button>
+          </div>
+          <div class="btn-row" style="margin-top:16px">
+            <button class="btn-secondary" id="modal-cancel">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   return `
     <div class="overlay ${open?'open':''}" id="modal-overlay">
       <div class="sheet">
@@ -560,6 +629,15 @@ function renderModal(data){
           </div>
           <input class="m-input" id="form-name" placeholder="Habit name" maxlength="40" value="${esc(f.name||'')}">
           <input class="m-input" id="form-note" placeholder="Note (optional)" maxlength="60" style="margin-bottom:12px" value="${esc(f.note||'')}">
+          <div class="field-label">Tracking type</div>
+          <div class="day-row">
+            <button class="day-btn ${f.trackType!=='amount'?'sel':''}" data-set-tracktype="simple">Simple check</button>
+            <button class="day-btn ${f.trackType==='amount'?'sel':''}" data-set-tracktype="amount">Amount / Count</button>
+          </div>
+          ${f.trackType==='amount'?`
+            <input class="m-input" id="form-target" type="number" step="any" placeholder="Target amount (e.g. 3)" value="${f.target||''}">
+            <input class="m-input" id="form-unit" placeholder="Unit (e.g. L, times, pages)" style="margin-bottom:12px" value="${esc(f.unit||'')}">
+          `:''}
           <div class="field-label">Repeat on</div>
           <div class="day-row">
             ${DAYS.map(d=>`<button class="day-btn ${(f.days||[]).includes(d)?'sel':''}" data-toggle-day="${d}">${d}</button>`).join('')}
@@ -632,6 +710,7 @@ function renderAdmin(){
                     const streak=getHabitStreak(data,h.id);
                     const mp=getMonthPct(data,h.id);
                     const done=tc[`h_${h.id}`];
+                    const amountInfo=h.trackType==='amount'?` · ${getAmount(data,h.id,today)}/${h.target} ${esc(h.unit||'')} today`:'';
                     return `<div class="mini-card">
                       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                         <div style="font-size:15px;font-weight:500">${h.emoji} ${esc(h.name)}</div>
@@ -640,8 +719,8 @@ function renderAdmin(){
                           <span class="tag ${done?'done':'pending'}">${done?'Done':'Pending'}</span>
                         </div>
                       </div>
-                      <div style="display:flex;gap:12px">
-                        <span style="font-size:12px;color:rgba(235,235,245,.4)">Days: ${h.days.join(', ')}</span>
+                      <div style="display:flex;gap:12px;flex-wrap:wrap">
+                        <span style="font-size:12px;color:rgba(235,235,245,.4)">Days: ${h.days.join(', ')}${amountInfo}</span>
                         <span style="font-size:12px;font-weight:600;color:${mp>=70?'#30d158':mp>=40?'#ff9f0a':'#ff453a'}">${mp}% month</span>
                       </div>
                     </div>`;
@@ -700,6 +779,12 @@ function attachHandlers(){
       render();
     };
   });
+  document.querySelectorAll('[data-open-log]').forEach(el=>{
+    el.onclick=()=>{
+      const id=el.getAttribute('data-open-log');
+      state.editTarget=id; state.modal='logHabit'; render();
+    };
+  });
   document.querySelectorAll('[data-toggle-task]').forEach(el=>{
     el.onclick=()=>{
       const id=el.getAttribute('data-toggle-task');
@@ -724,7 +809,7 @@ function attachHandlers(){
 
   const openAdd=document.getElementById('open-add');
   if(openAdd) openAdd.onclick=()=>{
-    if(state.tab==='habits'){state.form={name:'',note:'',emoji:'💧',days:['Mon','Tue','Wed','Thu','Fri']};state.editTarget=null;state.modal='habit';}
+    if(state.tab==='habits'){state.form={name:'',note:'',emoji:'💧',days:['Mon','Tue','Wed','Thu','Fri'],trackType:'simple'};state.editTarget=null;state.modal='habit';}
     else{state.form={name:'',note:'',dueDate:''};state.editTarget=null;state.modal='task';}
     render();
   };
@@ -758,8 +843,40 @@ function attachHandlers(){
   const overlay=document.getElementById('modal-overlay');
   if(overlay){
     overlay.onclick=(e)=>{if(e.target===overlay){state.modal=null;render();}};
+
+    if(state.modal==='logHabit'){
+      const minusBtn=document.getElementById('log-minus1');
+      const addBtn=document.getElementById('log-add-btn');
+      const inputEl=document.getElementById('log-amount-input');
+      if(minusBtn) minusBtn.onclick=()=>{
+        adjustAmount(data,state.editTarget,-1);
+        saveUserData(uname,data);
+        maybeCelebrate(data);
+        render();
+      };
+      if(addBtn) addBtn.onclick=()=>{
+        const v=parseFloat(inputEl.value);
+        if(!isNaN(v) && v!==0){
+          adjustAmount(data,state.editTarget,v);
+          saveUserData(uname,data);
+          maybeCelebrate(data);
+        }
+        render();
+      };
+      if(inputEl) inputEl.onkeydown=e=>{if(e.key==='Enter')addBtn.click();};
+      const cancelBtn=document.getElementById('modal-cancel');
+      if(cancelBtn) cancelBtn.onclick=()=>{state.modal=null;render();};
+      return;
+    }
+
     document.querySelectorAll('[data-pick-emoji]').forEach(el=>{
       el.onclick=()=>{state.form.emoji=el.getAttribute('data-pick-emoji');render();};
+    });
+    document.querySelectorAll('[data-set-tracktype]').forEach(el=>{
+      el.onclick=()=>{
+        state.form.trackType=el.getAttribute('data-set-tracktype');
+        render();
+      };
     });
     document.querySelectorAll('[data-toggle-day]').forEach(el=>{
       el.onclick=()=>{
@@ -770,9 +887,12 @@ function attachHandlers(){
       };
     });
     const nameEl=document.getElementById('form-name'), noteEl=document.getElementById('form-note'), dueEl=document.getElementById('form-due');
+    const targetEl=document.getElementById('form-target'), unitEl=document.getElementById('form-unit');
     if(nameEl) nameEl.oninput=()=>{state.form.name=nameEl.value;};
     if(noteEl) noteEl.oninput=()=>{state.form.note=noteEl.value;};
     if(dueEl) dueEl.oninput=()=>{state.form.dueDate=dueEl.value;};
+    if(targetEl) targetEl.oninput=()=>{state.form.target=targetEl.value;};
+    if(unitEl) unitEl.oninput=()=>{state.form.unit=unitEl.value;};
 
     const cancelBtn=document.getElementById('modal-cancel');
     if(cancelBtn) cancelBtn.onclick=()=>{state.modal=null;render();};
@@ -791,7 +911,18 @@ function attachHandlers(){
       if(!f.name||!f.name.trim())return;
       if(isHabit){
         if(!(f.days&&f.days.length))return;
-        const cleanData={...f,name:f.name.trim(),note:(f.note||'').trim()};
+        if(f.trackType==='amount'){
+          const t=parseFloat(f.target);
+          if(!t||t<=0)return;
+        }
+        const cleanData={
+          ...f,
+          name:f.name.trim(),
+          note:(f.note||'').trim(),
+          trackType:f.trackType==='amount'?'amount':'simple',
+          target:f.trackType==='amount'?parseFloat(f.target):undefined,
+          unit:f.trackType==='amount'?(f.unit||'').trim():undefined
+        };
         if(state.editTarget){
           data.habits=data.habits.map(h=>h.id===state.editTarget?{...h,...cleanData}:h);
         }else{
