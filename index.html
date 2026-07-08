@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#000000">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Habits</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -177,6 +180,10 @@ function getDateStr(date){
   return `${days[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`;
 }
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function parseKeyToDate(key){
+  const parts=key.split('-').map(Number);
+  return new Date(parts[0],parts[1]-1,parts[2]);
+}
 
 function lget(key,def){try{const v=localStorage.getItem(key);return v?JSON.parse(v):def}catch{return def}}
 function lset(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch{}}
@@ -268,7 +275,7 @@ function showCelebration(){
   }
 }
 function getVisibleTasksFor(data,refKey){
-  return data.tasks.filter(t=>!t.dueDate || t.dueDate<=refKey);
+  return data.tasks.filter(t=>!t.dueDate || t.dueDate===refKey);
 }
 function maybeCelebrate(data){
   const today=getKey(new Date());
@@ -359,12 +366,17 @@ function loadUserData(uname){ return lget(`user_${uname}`,{habits:[],tasks:[],co
 function saveUserData(uname,data){ lset(`user_${uname}`,data); }
 
 function getHabitStreak(data,id){
-  let s=0;const now=new Date();
-  for(let i=0;i<365;i++){
+  const h=data.habits.find(x=>x.id===id); if(!h) return 0;
+  const now=new Date();
+  const todayKey=getKey(now), todayDay=getDayName(now);
+  const todayScheduled=h.days.includes(todayDay);
+  const todayDone=todayScheduled && data.completions[todayKey] && data.completions[todayKey][`h_${id}`];
+  const startOffset=(todayScheduled && !todayDone)?1:0;
+  let s=0;
+  for(let i=startOffset;i<365;i++){
     const date=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i);
     const k=getKey(date),dn=getDayName(date);
-    const h=data.habits.find(x=>x.id===id);
-    if(!h||!h.days.includes(dn))continue;
+    if(!h.days.includes(dn))continue;
     if(!(data.completions[k]&&data.completions[k][`h_${id}`]))break;
     s++;
   }
@@ -498,7 +510,7 @@ function renderApp(){
             return `<div class="day-lbl">${['Su','Mo','Tu','We','Th','Fr','Sa'][date.getDay()]}</div>`;
           }).join('');
           return `<div class="stat-card">
-            <div class="stat-top"><div class="stat-name">${h.emoji} ${esc(h.name)}</div>${streak>0?`<div class="stat-streak">🔥 ${streak}</div>`:''}</div>
+            <div class="stat-top"><div class="stat-name">${h.emoji} ${esc(h.name)}</div><div class="stat-streak" style="color:${streak>0?'#ff9f0a':'rgba(235,235,245,.3)'}">${streak>0?'🔥 ':''}${streak}</div></div>
             <div class="stat-grid">
               <div class="stat-mini"><div class="stat-num" style="color:#0a84ff">${streak}</div><div class="stat-sub">Streak</div></div>
               <div class="stat-mini"><div class="stat-num" style="color:${mpColor}">${mp}%</div><div class="stat-sub">This month</div></div>
@@ -544,19 +556,29 @@ function renderApp(){
 }
 
 function habitCard(h,done,streak,data){
+  const streakColor=streak>0?'#ff9f0a':'rgba(235,235,245,.3)';
+  const streakHtml=`<div class="streak" style="color:${streakColor}">${streak>0?'🔥':''}${streak}</div>`;
   if(h.trackType==='amount'){
     const vKey=getKey(state.viewDate);
     const current=getAmount(data,h.id,vKey);
     const target=h.target||1;
     const pct=Math.min(100,Math.round((current/target)*100));
-    return `<div class="card ${done?'done':''}">
-      <div class="check-ring ${done?'done':''}" data-open-log="${h.id}">${done?'<span class="check-icon" style="opacity:1">✓</span>':`<span class="pct-text">${pct}%</span>`}</div>
-      <div class="info" data-open-log="${h.id}">
-        <div class="h-name ${done?'done':''}">${h.emoji} ${esc(h.name)}</div>
-        <div class="h-note">${current} / ${target} ${esc(h.unit||'')}</div>
+    return `<div class="card ${done?'done':''}" style="flex-direction:column;align-items:stretch;gap:10px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="check-ring ${done?'done':''}" data-open-log="${h.id}">${done?'<span class="check-icon" style="opacity:1">✓</span>':''}</div>
+        <div class="info" data-open-log="${h.id}">
+          <div class="h-name ${done?'done':''}">${h.emoji} ${esc(h.name)}</div>
+        </div>
+        ${streakHtml}
+        <button class="edit-btn" data-edit-habit="${h.id}">✎</button>
       </div>
-      ${streak>0?`<div class="streak">🔥${streak}</div>`:''}
-      <button class="edit-btn" data-edit-habit="${h.id}">✎</button>
+      <div data-open-log="${h.id}" style="cursor:pointer">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+          <span style="font-size:13px;color:rgba(235,235,245,.6)">${current} / ${target} ${esc(h.unit||'')}</span>
+          <span style="font-size:13px;font-weight:600;color:#0a84ff">${pct}%</span>
+        </div>
+        <div class="prog-bg" style="height:8px"><div class="prog-fill ${pct>=100?'full':''}" style="width:${pct}%"></div></div>
+      </div>
     </div>`;
   }
   return `<div class="card ${done?'done':''}">
@@ -565,7 +587,7 @@ function habitCard(h,done,streak,data){
       <div class="h-name ${done?'done':''}">${h.emoji} ${esc(h.name)}</div>
       ${h.note?`<div class="h-note">${esc(h.note)}</div>`:''}
     </div>
-    ${streak>0?`<div class="streak">🔥${streak}</div>`:''}
+    ${streakHtml}
     <button class="edit-btn" data-edit-habit="${h.id}">✎</button>
   </div>`;
 }
@@ -715,7 +737,7 @@ function renderAdmin(){
                       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                         <div style="font-size:15px;font-weight:500">${h.emoji} ${esc(h.name)}</div>
                         <div style="display:flex;gap:8px;align-items:center">
-                          ${streak>0?`<span style="font-size:13px;color:#ff9f0a">🔥${streak}</span>`:''}
+                          <span style="font-size:13px;color:${streak>0?'#ff9f0a':'rgba(235,235,245,.3)'}">${streak>0?'🔥':''}${streak}</span>
                           <span class="tag ${done?'done':'pending'}">${done?'Done':'Pending'}</span>
                         </div>
                       </div>
