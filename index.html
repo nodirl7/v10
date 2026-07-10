@@ -384,11 +384,17 @@ function getHabitStreak(data,id){
 }
 function getMonthPct(data,id){
   const h=data.habits.find(x=>x.id===id);if(!h)return 0;
-  const d=new Date();let scheduled=0,done=0;
-  for(let day=1;day<=d.getDate();day++){
+  const d=new Date();
+  const daysInMonth=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  let scheduled=0,done=0;
+  for(let day=1;day<=daysInMonth;day++){
     const date=new Date(d.getFullYear(),d.getMonth(),day);
     const dn=getDayName(date);
-    if(h.days.includes(dn)){scheduled++;const k=getKey(date);if(data.completions[k]&&data.completions[k][`h_${id}`])done++;}
+    if(h.days.includes(dn)){
+      scheduled++;
+      const k=getKey(date);
+      if(data.completions[k]&&data.completions[k][`h_${id}`])done++;
+    }
   }
   return scheduled?Math.round(done/scheduled*100):0;
 }
